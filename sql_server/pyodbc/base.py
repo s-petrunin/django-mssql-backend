@@ -236,7 +236,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             conn_params['NAME'] = 'master'
         return conn_params
 
-    def get_new_connection(self, conn_params):
+    def _get_connection_strings(self, conn_params, options):
         database = conn_params['NAME']
         host = conn_params.get('HOST', 'localhost')
         user = conn_params.get('USER', None)
@@ -244,7 +244,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         port = conn_params.get('PORT', None)
 
         default_driver = 'SQL Server' if os.name == 'nt' else 'FreeTDS'
-        options = conn_params.get('OPTIONS', {})
         driver = options.get('driver', default_driver)
         dsn = options.get('dsn', None)
 
@@ -308,6 +307,13 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         failover_connstr = None
         if failover_host:
             failover_connstr = connstr.replace(host, failover_host, count=1)
+
+        return connstr, failover_connstr
+
+    def get_new_connection(self, conn_params):
+        options = conn_params.get('OPTIONS', {})
+
+        connstr, failover_connstr = self._get_connection_strings(conn_params, options)
 
         unicode_results = options.get('unicode_results', False)
         timeout = options.get('connection_timeout', 0)
