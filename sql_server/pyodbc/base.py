@@ -306,7 +306,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         failover_host = options.get('failover_partner', None)
         failover_connstr = None
         if failover_host:
-            failover_connstr = connstr.replace(host, failover_host, count=1)
+            failover_connstr = connstr.replace(host, failover_host, 1)
 
         return connstr, failover_connstr
 
