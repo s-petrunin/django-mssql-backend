@@ -178,13 +178,18 @@ Dictionary. Current available keys are:
 
 -  connection_retry_backoff_time
 
-   Integer. Sets the back off time in seconds for reries of
+   Integer. Sets the back off time in seconds for retries of
    the database connection process. Default value is ``5``.
 
 -  query_timeout
 
    Integer. Sets the timeout in seconds for the database query.
    Default value is ``0`` which disables the timeout.
+
+-  failover_partner
+
+   String. Same as HOST but for failover partner.
+   Default is not specified which disable the failover partner.
 
 backend-specific settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -170,6 +170,12 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         '49919',
         '49920',
     )
+    _unrecoverable_error_numbers = (
+        '18486',  # account is locked
+        '18487',  # password expired
+        '18488',  # password should be changed
+        '18452',  # login from untrusted domain
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -298,6 +304,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if options.get('extra_params', None):
             connstr += ';' + options['extra_params']
 
+        failover_host = options.get('failover_partner', None)
+        failover_connstr = None
+        if failover_host:
+            failover_connstr = connstr.replace(host, failover_host, 1)
+
         unicode_results = options.get('unicode_results', False)
         timeout = options.get('connection_timeout', 0)
         retries = options.get('connection_retries', 5)
@@ -307,15 +318,34 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         conn = None
         retry_count = 0
         need_to_retry = False
+        failover = False
+        error_numbers, failover_error_numbers = '', ''
         while conn is None:
             try:
                 conn = Database.connect(connstr,
                                         unicode_results=unicode_results,
                                         timeout=timeout)
             except Exception as e:
+                current_error_numbers = e.args[1]
+
+                for error_number in self._unrecoverable_error_numbers:  # never retry upon receiving unrecoverable code
+                    if error_number in current_error_numbers:
+                        raise
+
+                if not failover:
+                    error_numbers = current_error_numbers
+                else:
+                    failover_error_numbers = current_error_numbers
+
+                if failover_connstr:  # retry with failover if available
+                    connstr, failover_connstr = failover_connstr, connstr
+                    failover = not failover
+                    if failover:
+                        continue
+
                 for error_number in self._transient_error_numbers:
-                    if error_number in e.args[1]:
-                        if error_number in e.args[1] and retry_count < retries:
+                    if error_number in error_numbers or error_number in failover_error_numbers:
+                        if retry_count < retries:
                             time.sleep(backoff_time)
                             need_to_retry = True
                             retry_count = retry_count + 1
